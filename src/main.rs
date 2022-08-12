@@ -1,17 +1,32 @@
 // import path system
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self};
 
-static INPUT: &str = "/mnt/d/DeckEmulationSync/roms/nes/";
+static ACTUALLY_DELETE: bool = true;
+static DELETE_BETAS: bool = true;
+static INPUT: &str = "/mnt/d/DeckEmulationSync/roms/";
+static RECURSE: bool = true;
 
 fn main() {
-    // hashmap of strings and arrays of strings
-    let mut counts: HashMap<String, Vec<String>> = HashMap::new();
-    // read files in directory
+    println!("Rust Rom Cleaner v0.1");
+    run(INPUT);
+}
 
-    if let Ok(entries) = fs::read_dir(INPUT) {
+fn run(folder: &str) {
+    println!("Scanning {}", folder);
+    let mut counts: HashMap<String, Vec<String>> = HashMap::new();
+
+    if let Ok(entries) = fs::read_dir(folder) {
         for entry in entries {
+            // check if entry is a directory
             if let Ok(entry) = entry {
+                if let Ok(metadata) = entry.metadata() && RECURSE {
+                    if metadata.is_dir() {
+                        run(entry.path().to_str().unwrap());
+                        continue;
+                    }
+                }
+
                 // get string file_name from entry
                 let file_name: String = entry.file_name().into_string().unwrap();
 
@@ -25,9 +40,8 @@ fn main() {
                         .or_insert(vec![])
                         .push(String::from(&file_name));
                 }
-
-                continue;
             }
+            // we are a file... continue
         }
         // loop through hashmap and print out key and value
         for (_key, value) in counts.iter() {
@@ -63,6 +77,7 @@ fn main() {
                 rom_flags.entry("eur").or_insert(false);
                 rom_flags.entry("jpn").or_insert(false);
                 rom_flags.entry("val").or_insert(false);
+                rom_flags.entry("beta").or_insert(false);
 
                 set_flags(rom, &mut rom_flags);
 
@@ -74,7 +89,9 @@ fn main() {
 
                 let mut should_delete_rom = false;
 
-                if (flags["usa"] && !rom_flags["usa"])
+                if rom_flags["beta"] && DELETE_BETAS {
+                    should_delete_rom = true;
+                } else if (flags["usa"] && !rom_flags["usa"])
                     || (flags["usa"] && flags["val"] && !rom_flags["val"])
                 {
                     should_delete_rom = true;
@@ -91,17 +108,22 @@ fn main() {
                 if should_delete_rom {
                     // println!("FLAGS {:?}", flags);
                     // println!("ROM FLAGS {:?}", rom_flags);
-                    _ = delete_rom(rom);
+                    _ = delete_rom(rom, folder);
                 }
             }
         }
     }
 }
 
-fn delete_rom(rom: &str) -> std::io::Result<()> {
+fn delete_rom(rom: &str, folder: &str) -> std::io::Result<()> {
     // delete file at rom path
-    println!("DELETING: {}", rom);
-    fs::remove_file(INPUT.to_string() + rom)
+    let path = "".to_owned() + folder + "/" + rom;
+    println!("DELETING: {}", path);
+    if ACTUALLY_DELETE {
+        return fs::remove_file(path);
+    } else {
+        return Ok(());
+    }
 }
 
 fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) {
@@ -121,6 +143,12 @@ fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) {
     }
     if file_name.contains("(!)") || file_name.contains("[!]") || file_name.contains("(VALID)") {
         countries.insert("val", true);
+        // println!("VAL YAY")
+    }
+
+    if file_name.contains("(Beta)") || file_name.contains("[Beta]") || file_name.contains("(Beta)")
+    {
+        countries.insert("beta", true);
         // println!("VAL YAY")
     }
 
