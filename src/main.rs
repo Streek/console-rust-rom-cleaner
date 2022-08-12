@@ -50,7 +50,7 @@ fn main() {
             flags.entry("jpn").or_insert(false);
             flags.entry("val").or_insert(false);
 
-            println!("{:?}", flags);
+            // println!("{:?}", flags);
 
             // loop through each value
             for file_name in value {
@@ -99,9 +99,9 @@ fn main() {
 }
 
 fn delete_rom(rom: &str) -> std::io::Result<()> {
-    println!("Deleting: {:?}", rom);
-    fs::remove_file(rom)?;
-    Ok(())
+    // delete file at rom path
+    println!("DELETING: {}", rom);
+    fs::remove_file(INPUT.to_string() + rom)
 }
 
 fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) {
