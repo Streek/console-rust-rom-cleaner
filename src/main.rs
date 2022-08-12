@@ -2,26 +2,23 @@
 use std::collections::HashMap;
 use std::fs;
 
+static INPUT: &str = "/mnt/d/DeckEmulationSync/roms/nes/";
+
 fn main() {
     // hashmap of strings and arrays of strings
     let mut counts: HashMap<String, Vec<String>> = HashMap::new();
     // read files in directory
 
-    if let Ok(entries) = fs::read_dir("./") {
+    if let Ok(entries) = fs::read_dir(INPUT) {
         for entry in entries {
             if let Ok(entry) = entry {
                 // get string file_name from entry
                 let file_name: String = entry.file_name().into_string().unwrap();
 
-                // print!("{:?} ", file_name);
-
                 let split = &file_name
                     .split(&['(', ')', '[', ']'][..])
                     .collect::<Vec<&str>>();
 
-                // print!("{:?} ", split);
-
-                // // add split(key) and file_name(value) to hashmap
                 if split.len() > 1 {
                     counts
                         .entry(split[0].to_string())
@@ -29,74 +26,103 @@ fn main() {
                         .push(String::from(&file_name));
                 }
 
-                println!("{:?}", counts);
                 continue;
             }
         }
         // loop through hashmap and print out key and value
         for (key, value) in counts.iter() {
-            let mut USA = false;
-            let mut EUR = false;
-            let mut JAP = false;
-            let mut VALID = false;
-
-            // if value is empty, print key
-            // if value has a length of 1 continue
-            // if vlaue has a length > 1 print key and value
             if value.len() == 0 {
-                println!("{:?}", key);
-            } else if value.len() == 1 {
+                // println!("No values: {:?}", key);
                 continue;
-            } else {
-                // loop through each value
-                for file_name in value {
-                    // if (U), [U] or (USA) exist in file_name mark USA as true
-                    if file_name.contains("(U)")
-                        || file_name.contains("[U]")
-                        || file_name.contains("(USA)")
-                    {
-                        USA = true;
-                        print!("USA YAY")
-                    }
-                    if file_name.contains("(E)")
-                        || file_name.contains("[E]")
-                        || file_name.contains("(Europe)")
-                    {
-                        EUR = true;
-                        print!("EUR YAY")
-                    }
-                    if file_name.contains("(J)")
-                        || file_name.contains("[J]")
-                        || file_name.contains("(JAPAN)")
-                    {
-                        JAP = true;
-                        print!("JAPAN YAY")
-                    }
-                }
-                for rom in value {
-                    if USA {
-                        if rom.contains("(U)") || rom.contains("[U]") || rom.contains("(USA)") {
-                            if (VALID && rom.contains("[!]")) || !VALID {
-                                continue;
-                            }
-                        }
-                    } else if EUR {
-                        if rom.contains("(E)") || rom.contains("[E]") || rom.contains("(Europe)") {
-                            if (VALID && rom.contains("[!]")) || !VALID {
-                                continue;
-                            }
-                        }
-                    } else if JAP {
-                        if VALID && rom.contains("[!]") {
-                            continue;
-                        }
-                    }
-                    // delete rom
-                }
+            }
+            if value.len() == 1 {
+                // println!("One value: {:?}", key);
+                continue;
+            }
+            if value.len() > 1 {
+                // println!("Multiple values: {:?}", key);
+                // clean up multiple values
             }
 
-            println!("{:?}", key);
-            println!("{:?}", value);
+            let mut flags = HashMap::new();
+            flags.entry("usa").or_insert(false);
+            flags.entry("eur").or_insert(false);
+            flags.entry("jpn").or_insert(false);
+            flags.entry("val").or_insert(false);
+
+            println!("{:?}", flags);
+
+            // loop through each value
+            for file_name in value {
+                set_flags(file_name, &mut flags);
+            }
+
+            for rom in value {
+                let mut rom_flags = HashMap::new();
+                rom_flags.entry("usa").or_insert(false);
+                rom_flags.entry("eur").or_insert(false);
+                rom_flags.entry("jpn").or_insert(false);
+                rom_flags.entry("val").or_insert(false);
+
+                set_flags(rom, &mut rom_flags);
+
+                // rules are as follows...
+                // if USA and VAL delete all other but the valid USA
+                // elseif EUR and VAL delete all other but the valid EUR
+                // elseif JPN and VAL delete all other but the valid JPN
+                // if not VAL pick the first USA then EUR, THEN JPN
+
+                let mut should_delete_rom = false;
+
+                if (flags["usa"] && !rom_flags["usa"])
+                    || (flags["usa"] && flags["val"] && !rom_flags["val"])
+                {
+                    should_delete_rom = true;
+                } else if (flags["eur"] && rom_flags["jpn"])
+                    || (flags["eur"] && flags["val"] && !rom_flags["val"])
+                {
+                    should_delete_rom = true;
+                } else if (flags["jpn"] && !rom_flags["usa"])
+                    || (flags["jpn"] && flags["val"] && !rom_flags["val"])
+                {
+                    should_delete_rom = true;
+                }
+
+                if should_delete_rom {
+                    println!("FLAGS {:?}", flags);
+                    println!("ROM FLAGS {:?}", rom_flags);
+                    _ = delete_rom(rom);
+                }
+            }
         }
     }
+}
+
+fn delete_rom(rom: &str) -> std::io::Result<()> {
+    println!("Deleting: {:?}", rom);
+    // fs::remove_file(rom)?;
+    Ok(())
+}
+
+fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) {
+    if file_name.contains("(U)") || file_name.contains("[U]") || file_name.contains("(USA)") {
+        countries.insert("usa", true);
+        // println!("USA YAY")
+    }
+
+    if file_name.contains("(E)") || file_name.contains("[E]") || file_name.contains("(EUROPE)") {
+        countries.insert("eur", true);
+        // println!("EUR YAY")
+    }
+
+    if file_name.contains("(J)") || file_name.contains("[J]") || file_name.contains("(JAPAN)") {
+        countries.insert("jpn", true);
+        // println!("JPN YAY")
+    }
+    if file_name.contains("(!)") || file_name.contains("[!]") || file_name.contains("(VALID)") {
+        countries.insert("val", true);
+        // println!("VAL YAY")
+    }
+
+    return;
 }
