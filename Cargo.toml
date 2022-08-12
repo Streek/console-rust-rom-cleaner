@@ -1,5 +1,5 @@
 [package]
-name = "RustRomCleaner"
+name = "rust_rom_cleaner"
 version = "0.1.0"
 edition = "2021"
 

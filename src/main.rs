@@ -30,7 +30,7 @@ fn main() {
             }
         }
         // loop through hashmap and print out key and value
-        for (key, value) in counts.iter() {
+        for (_key, value) in counts.iter() {
             if value.len() == 0 {
                 // println!("No values: {:?}", key);
                 continue;
@@ -89,8 +89,8 @@ fn main() {
                 }
 
                 if should_delete_rom {
-                    println!("FLAGS {:?}", flags);
-                    println!("ROM FLAGS {:?}", rom_flags);
+                    // println!("FLAGS {:?}", flags);
+                    // println!("ROM FLAGS {:?}", rom_flags);
                     _ = delete_rom(rom);
                 }
             }
@@ -100,7 +100,7 @@ fn main() {
 
 fn delete_rom(rom: &str) -> std::io::Result<()> {
     println!("Deleting: {:?}", rom);
-    // fs::remove_file(rom)?;
+    fs::remove_file(rom)?;
     Ok(())
 }
 
