@@ -62,15 +62,7 @@ fn run(folder: &str) {
             let mut flags = HashMap::new();
             let mut val_flags = HashMap::new();
 
-            flags.entry("usa").or_insert(false);
-            flags.entry("eur").or_insert(false);
-            flags.entry("jpn").or_insert(false);
-            flags.entry("brz").or_insert(false);
-            flags.entry("glo").or_insert(false);
-            flags.entry("val").or_insert(false);
-            flags.entry("beta").or_insert(false);
-            flags.entry("hack").or_insert(false);
-            flags.entry("").or_insert(false);
+            set_hash_defaults(&mut flags);
 
             // loop through each value
             for rom in rom_collection {
@@ -79,14 +71,8 @@ fn run(folder: &str) {
 
             for rom in rom_collection {
                 let mut rom_flags = HashMap::new();
-                rom_flags.entry("usa").or_insert(false);
-                rom_flags.entry("eur").or_insert(false);
-                rom_flags.entry("jpn").or_insert(false);
-                rom_flags.entry("val").or_insert(false);
-                rom_flags.entry("brz").or_insert(false);
-                rom_flags.entry("glo").or_insert(false);
-                rom_flags.entry("beta").or_insert(false);
-                rom_flags.entry("hack").or_insert(false);
+
+                set_hash_defaults(&mut rom_flags);
 
                 _ = set_flags(rom, &mut rom_flags);
 
@@ -112,7 +98,7 @@ fn run(folder: &str) {
                         delete_rom(rom, folder);
                         break;
                     } else {
-                        if val_flags[&item.to_string()] && !rom_flags["val"] {
+                        if val_flags[item] && !rom_flags["val"] {
                             delete_rom(rom, folder);
                             break;
                         }
@@ -122,6 +108,18 @@ fn run(folder: &str) {
         }
     }
 }
+
+fn set_hash_defaults(hash: &mut HashMap<&str, bool>) {
+    hash.entry("usa").or_insert(false);
+    hash.entry("eur").or_insert(false);
+    hash.entry("jpn").or_insert(false);
+    hash.entry("val").or_insert(false);
+    hash.entry("brz").or_insert(false);
+    hash.entry("glo").or_insert(false);
+    hash.entry("beta").or_insert(false);
+    hash.entry("hack").or_insert(false);
+}
+
 fn delete_rom(rom: &str, folder: &str) {
     let path = "".to_owned() + folder + "/" + rom;
     println!("DELETING: {}", path);
@@ -131,7 +129,10 @@ fn delete_rom(rom: &str, folder: &str) {
     return;
 }
 
-fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) -> HashMap<String, bool> {
+fn set_flags(
+    file_name: &String,
+    countries: &mut HashMap<&str, bool>,
+) -> HashMap<&'static str, bool> {
     lazy_static! {
         static ref RE_USA: Regex = Regex::new(r"(?i)[\(\[\{](u|us|usa)[\)\]\}]").unwrap();
         static ref RE_EUR: Regex = Regex::new(r"(?i)[\(\[\{][europe]*[\)\]\}]").unwrap();
@@ -146,15 +147,9 @@ fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) -> HashMap
             Regex::new(r"(?i)[\(\[\{](h|ha|hak|hac|hack|h\d*)[\)\]\}]").unwrap();
     }
 
-    let mut val_flags: HashMap<String, bool> = HashMap::new();
-    val_flags.entry("usa".to_string()).or_insert(false);
-    val_flags.entry("eur".to_string()).or_insert(false);
-    val_flags.entry("jpn".to_string()).or_insert(false);
-    val_flags.entry("val".to_string()).or_insert(false);
-    val_flags.entry("brz".to_string()).or_insert(false);
-    val_flags.entry("glo".to_string()).or_insert(false);
-    val_flags.entry("beta".to_string()).or_insert(false);
-    val_flags.entry("hack".to_string()).or_insert(false);
+    let mut val_flags: HashMap<&str, bool> = HashMap::new();
+
+    set_hash_defaults(&mut val_flags);
 
     if RE_VAL.is_match(file_name) {
         countries.insert("val", true);
@@ -163,43 +158,43 @@ fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) -> HashMap
     if RE_USA.is_match(file_name) {
         countries.insert("usa", true);
         if countries["val"] {
-            val_flags.insert("usa".to_string(), true);
+            val_flags.insert("usa", true);
         }
     }
     if RE_EUR.is_match(file_name) {
         countries.insert("eur", true);
         if countries["val"] {
-            val_flags.insert("eur".to_string(), true);
+            val_flags.insert("eur", true);
         }
     }
     if RE_JPN.is_match(file_name) {
         countries.insert("jpn", true);
         if countries["val"] {
-            val_flags.insert("jpn".to_string(), true);
+            val_flags.insert("jpn", true);
         }
     }
     if RE_BRZ.is_match(file_name) {
         countries.insert("brz", true);
         if countries["val"] {
-            val_flags.insert("brz".to_string(), true);
+            val_flags.insert("brz", true);
         }
     }
     if RE_GLO.is_match(file_name) {
         countries.insert("glo", true);
         if countries["val"] {
-            val_flags.insert("glo".to_string(), true);
+            val_flags.insert("glo", true);
         }
     }
     if RE_BETA.is_match(file_name) {
         countries.insert("beta", true);
         if countries["val"] {
-            val_flags.insert("beta".to_string(), true);
+            val_flags.insert("beta", true);
         }
     }
     if RE_HACK.is_match(file_name) {
         countries.insert("hack", true);
         if countries["val"] {
-            val_flags.insert("hack".to_string(), true);
+            val_flags.insert("hack", true);
         }
     }
 
