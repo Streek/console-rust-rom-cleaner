@@ -1,11 +1,16 @@
 // import path system
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs::{self};
 
-static ACTUALLY_DELETE: bool = true;
+static ACTUALLY_DELETE: bool = false;
 static DELETE_BETAS: bool = true;
+static DELETE_HACKS: bool = true;
+static KEEP_ALL_VALIDS: bool = false;
 static INPUT: &str = "/mnt/d/DeckEmulationSync/roms/";
 static RECURSE: bool = true;
+static PRIORITY_VECTOR: &[&str] = &["usa", "glo", "eur", "jpn", "brz"];
 
 fn main() {
     println!("Rust Rom Cleaner v0.1");
@@ -44,113 +49,159 @@ fn run(folder: &str) {
             // we are a file... continue
         }
         // loop through hashmap and print out key and value
-        for (_key, value) in counts.iter() {
-            if value.len() == 0 {
+        for (_key, rom_collection) in counts.iter() {
+            if rom_collection.len() == 0 {
                 // println!("No values: {:?}", key);
                 continue;
             }
-            if value.len() == 1 {
+            if rom_collection.len() == 1 {
                 // println!("One value: {:?}", key);
                 continue;
             }
-            if value.len() > 1 {
-                // println!("Multiple values: {:?}", key);
-                // clean up multiple values
-            }
 
             let mut flags = HashMap::new();
+            let mut val_flags = HashMap::new();
+
             flags.entry("usa").or_insert(false);
             flags.entry("eur").or_insert(false);
             flags.entry("jpn").or_insert(false);
+            flags.entry("brz").or_insert(false);
+            flags.entry("glo").or_insert(false);
             flags.entry("val").or_insert(false);
-
-            // println!("{:?}", flags);
+            flags.entry("beta").or_insert(false);
+            flags.entry("hack").or_insert(false);
+            flags.entry("").or_insert(false);
 
             // loop through each value
-            for file_name in value {
-                set_flags(file_name, &mut flags);
+            for rom in rom_collection {
+                val_flags = set_flags(rom, &mut flags);
             }
 
-            for rom in value {
+            for rom in rom_collection {
                 let mut rom_flags = HashMap::new();
                 rom_flags.entry("usa").or_insert(false);
                 rom_flags.entry("eur").or_insert(false);
                 rom_flags.entry("jpn").or_insert(false);
                 rom_flags.entry("val").or_insert(false);
+                rom_flags.entry("brz").or_insert(false);
+                rom_flags.entry("glo").or_insert(false);
                 rom_flags.entry("beta").or_insert(false);
+                rom_flags.entry("hack").or_insert(false);
 
-                set_flags(rom, &mut rom_flags);
-
-                // rules are as follows...
-                // if USA and VAL delete all other but the valid USA
-                // elseif EUR and VAL delete all other but the valid EUR
-                // elseif JPN and VAL delete all other but the valid JPN
-                // if not VAL pick the first USA then EUR, THEN JPN
-
-                let mut should_delete_rom = false;
+                _ = set_flags(rom, &mut rom_flags);
 
                 if rom_flags["beta"] && DELETE_BETAS {
-                    should_delete_rom = true;
-                } else if (flags["usa"] && !rom_flags["usa"])
-                    || (flags["usa"] && flags["val"] && !rom_flags["val"])
-                {
-                    should_delete_rom = true;
-                } else if (flags["eur"] && rom_flags["jpn"])
-                    || (flags["eur"] && flags["val"] && !rom_flags["val"])
-                {
-                    should_delete_rom = true;
-                } else if (flags["jpn"] && !rom_flags["usa"])
-                    || (flags["jpn"] && flags["val"] && !rom_flags["val"])
-                {
-                    should_delete_rom = true;
+                    delete_rom(rom, folder);
+                    continue;
+                } else if rom_flags["hack"] && DELETE_HACKS {
+                    delete_rom(rom, folder);
+                    continue;
                 }
 
-                if should_delete_rom {
-                    // println!("FLAGS {:?}", flags);
-                    // println!("ROM FLAGS {:?}", rom_flags);
-                    _ = delete_rom(rom, folder);
+                for item in PRIORITY_VECTOR {
+                    if KEEP_ALL_VALIDS == true && rom_flags["val"] {
+                        break;
+                    }
+
+                    if !flags[item] {
+                        continue;
+                    }
+
+                    // if we have this type and the rom is NOT the same type AND our previous flag EXISTS && HAS BEEN VISITED.
+                    if flags[item] && !rom_flags[item] {
+                        delete_rom(rom, folder);
+                        break;
+                    } else {
+                        if val_flags[&item.to_string()] && !rom_flags["val"] {
+                            delete_rom(rom, folder);
+                            break;
+                        }
+                    }
                 }
             }
         }
     }
 }
-
-fn delete_rom(rom: &str, folder: &str) -> std::io::Result<()> {
-    // delete file at rom path
+fn delete_rom(rom: &str, folder: &str) {
     let path = "".to_owned() + folder + "/" + rom;
     println!("DELETING: {}", path);
     if ACTUALLY_DELETE {
-        return fs::remove_file(path);
-    } else {
-        return Ok(());
+        fs::remove_file(path).unwrap();
     }
+    return;
 }
 
-fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) {
-    if file_name.contains("(U)") || file_name.contains("[U]") || file_name.contains("(USA)") {
-        countries.insert("usa", true);
-        // println!("USA YAY")
+fn set_flags(file_name: &String, countries: &mut HashMap<&str, bool>) -> HashMap<String, bool> {
+    lazy_static! {
+        static ref RE_USA: Regex = Regex::new(r"(?i)[\(\[\{](u|us|usa)[\)\]\}]").unwrap();
+        static ref RE_EUR: Regex = Regex::new(r"(?i)[\(\[\{][europe]*[\)\]\}]").unwrap();
+        static ref RE_JPN: Regex = Regex::new(r"(?i)[\(\[\{][japan]*[\)\]\}]").unwrap();
+        static ref RE_BRZ: Regex = Regex::new(r"(?i)[\(\[\{][brazil]*[\)\]\}]").unwrap();
+        static ref RE_GLO: Regex = Regex::new(r"(?i)[\(\[\{](g|gl|glo|global)[\)\]\}]").unwrap();
+        static ref RE_VAL: Regex = Regex::new(r"(?i)[\(\[\{](!|v|valid)[\)\]\}]").unwrap();
+        static ref RE_BETA: Regex =
+            Regex::new(r"(?i)[\(\[\{](a\d*|a|al|alt.*|b|be|bet|proto|prototype|beta|b\d*)[\)\]\}]")
+                .unwrap();
+        static ref RE_HACK: Regex =
+            Regex::new(r"(?i)[\(\[\{](h|ha|hak|hac|hack|h\d*)[\)\]\}]").unwrap();
     }
 
-    if file_name.contains("(E)") || file_name.contains("[E]") || file_name.contains("(EUROPE)") {
-        countries.insert("eur", true);
-        // println!("EUR YAY")
-    }
+    let mut val_flags: HashMap<String, bool> = HashMap::new();
+    val_flags.entry("usa".to_string()).or_insert(false);
+    val_flags.entry("eur".to_string()).or_insert(false);
+    val_flags.entry("jpn".to_string()).or_insert(false);
+    val_flags.entry("val".to_string()).or_insert(false);
+    val_flags.entry("brz".to_string()).or_insert(false);
+    val_flags.entry("glo".to_string()).or_insert(false);
+    val_flags.entry("beta".to_string()).or_insert(false);
+    val_flags.entry("hack".to_string()).or_insert(false);
 
-    if file_name.contains("(J)") || file_name.contains("[J]") || file_name.contains("(JAPAN)") {
-        countries.insert("jpn", true);
-        // println!("JPN YAY")
-    }
-    if file_name.contains("(!)") || file_name.contains("[!]") || file_name.contains("(VALID)") {
+    if RE_VAL.is_match(file_name) {
         countries.insert("val", true);
-        // println!("VAL YAY")
     }
 
-    if file_name.contains("(Beta)") || file_name.contains("[Beta]") || file_name.contains("(Beta)")
-    {
+    if RE_USA.is_match(file_name) {
+        countries.insert("usa", true);
+        if countries["val"] {
+            val_flags.insert("usa".to_string(), true);
+        }
+    }
+    if RE_EUR.is_match(file_name) {
+        countries.insert("eur", true);
+        if countries["val"] {
+            val_flags.insert("eur".to_string(), true);
+        }
+    }
+    if RE_JPN.is_match(file_name) {
+        countries.insert("jpn", true);
+        if countries["val"] {
+            val_flags.insert("jpn".to_string(), true);
+        }
+    }
+    if RE_BRZ.is_match(file_name) {
+        countries.insert("brz", true);
+        if countries["val"] {
+            val_flags.insert("brz".to_string(), true);
+        }
+    }
+    if RE_GLO.is_match(file_name) {
+        countries.insert("glo", true);
+        if countries["val"] {
+            val_flags.insert("glo".to_string(), true);
+        }
+    }
+    if RE_BETA.is_match(file_name) {
         countries.insert("beta", true);
-        // println!("VAL YAY")
+        if countries["val"] {
+            val_flags.insert("beta".to_string(), true);
+        }
+    }
+    if RE_HACK.is_match(file_name) {
+        countries.insert("hack", true);
+        if countries["val"] {
+            val_flags.insert("hack".to_string(), true);
+        }
     }
 
-    return;
+    return val_flags;
 }
