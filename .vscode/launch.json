@@ -9,11 +9,7 @@
       "request": "launch",
       "name": "Debug executable 'RustRomCleaner'",
       "cargo": {
-        "args": [
-          "build",
-          "--bin=RustRomCleaner",
-          "--package=RustRomCleaner"
-        ],
+        "args": ["build", "--bin=RustRomCleaner", "--package=RustRomCleaner"],
         "filter": {
           "name": "RustRomCleaner",
           "kind": "bin"

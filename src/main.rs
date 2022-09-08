@@ -4,7 +4,7 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::fs::{self};
 
-static ACTUALLY_DELETE: bool = false;
+static ACTUALLY_DELETE: bool = true;
 static DELETE_BETAS: bool = true;
 static DELETE_HACKS: bool = true;
 static KEEP_ALL_VALIDS: bool = false;
