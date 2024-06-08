@@ -25,7 +25,9 @@ fn run(folder: &str) {
         for entry in entries {
             // check if entry is a directory
             if let Ok(entry) = entry {
-                if let Ok(metadata) = entry.metadata() && RECURSE {
+                if let Ok(metadata) = entry.metadata()
+                    && RECURSE
+                {
                     if metadata.is_dir() {
                         run(entry.path().to_str().unwrap());
                         continue;
